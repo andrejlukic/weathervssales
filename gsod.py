@@ -6,6 +6,7 @@ import pandas as pd
 import datetime as dt
 from pathlib import Path
 import urllib3
+import wutils
 
 class GSOD(object):
     '''
@@ -105,7 +106,7 @@ class GSOD(object):
             print(e)
 
     @staticmethod
-    def getData(station=None, start=dt.datetime.now().year, end=dt.datetime.now().year, **kwargs):
+    def getData(station=None, start=dt.datetime.now().year, end=dt.datetime.now().year, metric=True, **kwargs):
         '''
         Get weather data from the internet as memory stream
         '''
@@ -203,7 +204,6 @@ class GSOD(object):
             min_f = [re.sub(pattern=' ', repl='e', string=x) for x in min_f]
             min_f = [re.sub(pattern='\*', repl='d', string=x) for x in min_f]
 
-
             '''
             Create dataframe & cleanse data
             '''
@@ -216,7 +216,7 @@ class GSOD(object):
             # Define header names
             headers = ['stn', 'wban', 'date', 'temp', 'temp_c', 'dewp', 'dewp_c',
             'slp', 'slp_c', 'stp', 'stp_c', 'visib', 'visib_c',
-            'wdsp', 'wdsp_c', 'mxspd', 'gust', 'max', 'max_f', 'min', 'min_f',
+            'wdsp', 'wdsp_c', 'mxspd', 'gust', 'maxtemp', 'max_f', 'mintemp', 'min_f',
             'prcp', 'prcp_f', 'sndp', 'f', 'r', 's', 'h', 'th', 'tr']
 
             # Set precision
@@ -235,12 +235,35 @@ class GSOD(object):
             # Convert to numeric
             df[['temp', 'temp_c', 'dewp', 'dewp_c', 'slp', 'slp_c',
                 'stp', 'stp_c', 'visib', 'visib_c', 'wdsp', 'wdsp_c',
-                'mxspd',  'gust', 'max', 'min', 'prcp', 'sndp']] = df[['temp', 'temp_c', 'dewp',
+                'mxspd',  'gust', 'maxtemp', 'mintemp', 'prcp', 'sndp']] = df[['temp', 'temp_c', 'dewp',
                                                                        'dewp_c', 'slp', 'slp_c', 'stp',
                                                                        'stp_c', 'visib', 'visib_c', 'wdsp',
-                                                                       'wdsp_c', 'mxspd', 'gust', 'max',
-                                                                       'min', 'prcp', 'sndp']].apply(pd.to_numeric)
-
+                                                                       'wdsp_c', 'mxspd', 'gust', 'maxtemp',
+                                                                       'mintemp', 'prcp', 'sndp']].apply(pd.to_numeric, errors='raise')
+            pd.set_option('display.max_rows', 500)
+            pd.set_option('display.max_columns', 500)
+            pd.set_option('display.width', 1000)
+            
+            # print(df.head(10))
+            for x in df.temp:
+                print(type(x))
+            
+            if(metric):
+                '''
+                Convert to metric
+                '''
+                print('Converting data to metric.')
+                df.temp = df.temp.apply(wutils.fahrenheitToCelzius)                                
+                df.mintemp = df.mintemp.apply(wutils.fahrenheitToCelzius)
+                df.maxtemp = df.maxtemp.apply(wutils.fahrenheitToCelzius)
+                df.dewp = wutils.fahrenheitToCelzius(df.dewp)
+                df.visib = wutils.milesToKm(df.visib)
+                df.wdsp = wutils.knotsToKm(df.wdsp)
+                df.mxspd = wutils.knotsToKm(df.mxspd)
+                df.gust = wutils.knotsToKm(df.gust)
+                df.prcp = wutils.inchToCm(df.prcp)
+                df.sndp = wutils.inchToCm(df.sndp)
+                
             # Replace missing weather data with NaNs
             df = df.replace(to_replace=[99.99, 99.9,999.9,9999.9], value=np.nan)
             
