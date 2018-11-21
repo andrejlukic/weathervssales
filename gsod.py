@@ -4,6 +4,8 @@ import re
 import numpy as np
 import pandas as pd
 import datetime as dt
+from pathlib import Path
+import urllib3
 
 class GSOD(object):
     '''
@@ -23,9 +25,9 @@ class GSOD(object):
         e.g. {'ctry': 'UK'}, {'state': 'IA'}, {'station_name': 'STANTON'}
         '''
         try:
-            print('Wait! Downloading isd-history.csv file from NOAA servers...')
-            #url =  'http://www1.ncdc.noaa.gov/pub/data/noaa/isd-history.csv'
-            url = 'ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv'
+            print('Preparing isd-history.csv ...')
+            url =  'http://www1.ncdc.noaa.gov/pub/data/noaa/isd-history.csv'
+            #url = 'ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv'			      
             ''' HTTP Error 503: Service Unavailable
             # error message at work despite service
             # working properly
@@ -39,14 +41,34 @@ class GSOD(object):
                             'ICAO' : str,
                             'LAT' : float,
                             'LON' : float,
-                            'ELEV' : float,
+                            'ELEV(M)' : float,
                             'BEGIN' : str,
                           'END' : str}
             date_parser = ['BEGIN', 'END']
-            isd_hist = pd.read_csv(url,
+
+            cached_file = Path('isd-history.csv')
+                                    
+            if not cached_file.is_file():   
+                print(url)             
+                http = urllib3.PoolManager()
+                r = http.request('GET', url, preload_content=False)                
+                with open('isd-history.csv', 'wb') as out:
+                    while True:
+                        chunk_size = 1024
+                        data = r.read(chunk_size)
+                        if not data:
+                            break
+                        out.write(data)                
+                r.release_conn()             
+                print('downloaded from NOAA servers.')
+            else:
+                print('using locally cached file.')
+            
+            isd_hist = pd.read_csv(cached_file,
                                     dtype=df_mapping,
                                     parse_dates=date_parser)
-            print('Download complete!')
+
+            # print('Download complete! {}'.format(isd_hist.shape))
             
             # Rename 'STATION NAME' to 'STATION_NAME'
             isd_hist = isd_hist.rename(index=str, columns={'STATION NAME' : 'STATION_NAME'})
@@ -74,8 +96,10 @@ class GSOD(object):
                     acc.append('{} '.format(k) + sign + '= {} & '.format(v))
                 else:
                     acc.append('{} '.format(k) + sign + '= {} & '.format(''.join(v)))
-
-            return isd_hist.query(re.sub('(?=.*)&.$','' ,''.join(acc)))
+                
+            # this qury does not work any more, quick fix just to make it go for a country: 
+            # return isd_hist.query(re.sub('(?=.*)&.$','' ,''.join(acc)))
+            return isd_hist.query("ctry == '{}'".format(selection['ctry']))
             
         except Exception as e:
             print(e)
@@ -88,18 +112,39 @@ class GSOD(object):
         big_df = pd.DataFrame()
 
         for year in range(start, end+1):
-
-            # Define URL
-            url = 'http://www1.ncdc.noaa.gov/pub/data/gsod/' + str(year) + '/' + str(station) \
-                + '-' + str(year) + '.op.gz'
+            
+            cached_path = str(station) + '-99999-' + str(year) + '.op.gz'
+            cached_file = Path(cached_path)
+                                    
+            if not cached_file.is_file():   
+                # Define URL
+                url = 'http://www1.ncdc.noaa.gov/pub/data/gsod/' + str(year) + '/' + str(station) \
+                + '-99999-' + str(year) + '.op.gz'
+                print(url)             
+                http = urllib3.PoolManager()
+                r = http.request('GET', url, preload_content=False)                
+                with open(cached_path, 'wb') as out:
+                    while True:
+                        chunk_size = 1024
+                        data = r.read(chunk_size)
+                        if not data:
+                            break
+                        out.write(data)                
+                r.release_conn()             
+                print('Downloaded {} from NOAA servers.'.format(cached_path))
+            else:
+                print('Using locally cached file {}'.format(cached_path))
 
             # Define data stream
-            stream = requests.get(url)
+            #stream = requests.get(url)
 
             # Unzip on-the-fly
-            decomp_bytes = gzip.decompress(stream.content)
+            #decomp_bytes = gzip.decompress(stream.content)
+            
+            in_file = open(cached_file, "rb") # opening for [r]eading as [b]inary
+            decomp_bytes = gzip.decompress(in_file.read())
             data = decomp_bytes.decode('utf-8').split('\n')
-
+            in_file.close()
             '''
             Data manipulations and ordering
             '''
