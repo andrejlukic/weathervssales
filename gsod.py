@@ -240,13 +240,6 @@ class GSOD(object):
                                                                        'stp_c', 'visib', 'visib_c', 'wdsp',
                                                                        'wdsp_c', 'mxspd', 'gust', 'maxtemp',
                                                                        'mintemp', 'prcp', 'sndp']].apply(pd.to_numeric, errors='raise')
-            pd.set_option('display.max_rows', 500)
-            pd.set_option('display.max_columns', 500)
-            pd.set_option('display.width', 1000)
-            
-            # print(df.head(10))
-            for x in df.temp:
-                print(type(x))
             
             if(metric):
                 '''
@@ -271,6 +264,24 @@ class GSOD(object):
             df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
 
             big_df = pd.concat([big_df, df])
+            
+            # Add dayofyear and dayofweek
+            big_df['dayofyear'] = big_df.date.dt.dayofyear
+            big_df['dayofweek'] = big_df.date.dt.dayofweek  
+            
+            big_df = big_df.groupby([big_df.dayofyear], as_index=False).agg({'mintemp' : np.min, 
+                                                             'maxtemp' : np.max, 
+                                                             'prcp':np.max, 
+                                                             'visib':np.max, 
+                                                             'wdsp':np.max,
+                                                             'dayofyear':np.max,
+                                                             'dayofweek':np.max,
+                                                             'f':np.max,
+                                                             'r':np.max,
+                                                             's':np.max,
+                                                             'h':np.max,
+                                                             'th':np.max,
+                                                             'tr':np.max})
 
             print('station: {}\year {}\tDone!'.format(str(station), str(year)))
 
