@@ -12,7 +12,9 @@ class GSOD(object):
     '''
     Simple python API-like. Download GSOD weather data from NOAA servers.
     '''
-
+    weather_cache_history=r'data_weather\isd-history.csv'
+    weather_cache_data='data_weather'
+    
     def __init__(self):
         pass
 
@@ -47,13 +49,13 @@ class GSOD(object):
                           'END' : str}
             date_parser = ['BEGIN', 'END']
 
-            cached_file = Path('isd-history.csv')
+            cached_file = Path(GSOD.weather_cache_history)
                                     
             if not cached_file.is_file():   
                 print(url)             
                 http = urllib3.PoolManager()
                 r = http.request('GET', url, preload_content=False)                
-                with open('isd-history.csv', 'wb') as out:
+                with open(GSOD.weather_cache_history, 'wb') as out:
                     while True:
                         chunk_size = 1024
                         data = r.read(chunk_size)
@@ -63,7 +65,7 @@ class GSOD(object):
                 r.release_conn()             
                 print('downloaded from NOAA servers.')
             else:
-                print('using locally cached file.')
+                print('using locally cached file {}'.format(GSOD.weather_cache_history))
             
             isd_hist = pd.read_csv(cached_file,
                                     dtype=df_mapping,
@@ -114,13 +116,13 @@ class GSOD(object):
 
         for year in range(start, end+1):
             
-            cached_path = str(station) + '-99999-' + str(year) + '.op.gz'
+            weather_data_name = str(station) + '-99999-' + str(year) + '.op.gz'
+            cached_path = GSOD.weather_cache_data + '\\'+ weather_data_name
             cached_file = Path(cached_path)
                                     
             if not cached_file.is_file():   
                 # Define URL
-                url = 'http://www1.ncdc.noaa.gov/pub/data/gsod/' + str(year) + '/' + str(station) \
-                + '-99999-' + str(year) + '.op.gz'
+                url = 'http://www1.ncdc.noaa.gov/pub/data/gsod/' + str(year) + '/' + weather_data_name
                 print(url)             
                 http = urllib3.PoolManager()
                 r = http.request('GET', url, preload_content=False)                
