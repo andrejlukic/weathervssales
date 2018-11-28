@@ -22,4 +22,17 @@ def inchToCm(distanceInch):
 def knotsToKm(knots):
     conversion_factor = 1.85200
     return knots * conversion_factor
-    
+
+def inplace_change(filename, newfilename, old_string, new_string):
+    # Safely read the input filename using 'with'
+    with open(filename) as f:
+        s = f.read()
+        
+    # Safely write the changed content, if found in the file
+    with open(newfilename, 'w') as f:        
+        s = s.replace(old_string, new_string)
+        f.write(s)
+        
+        
+        
+        
